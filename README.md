@@ -5,7 +5,7 @@ smart-meters (AC, Geyser, Overall) from 3 Houses
 
 ![Directory tree and diagram](server_data_homes/images/tree.png)
 
-# Step-1: http://127.0.0.1:5000/stream_setup
+# Step-1: https://smart-home-backend-95to.onrender.com/stream_setup
 
    - Example API request (POST Method only):
      ```json
@@ -22,11 +22,11 @@ smart-meters (AC, Geyser, Overall) from 3 Houses
 	}
         ```
         
-# Step-2: http://127.0.0.1:5000/stream_qstats
+# Step-2: https://smart-home-backend-95to.onrender.com/stream_qstats
 
 ![Quick Stats from noise free data for outlier detection](server_data_homes/images/hist_stats.png)
 
-# Step-3: http://127.0.0.1:5000/stream_data
+# Step-3: https://smart-home-backend-95to.onrender.com/stream_data
 
 ![Server side updates after every interval seconds of average energy consumption in kW-min](server_data_homes/images/receiving_data.png)
      

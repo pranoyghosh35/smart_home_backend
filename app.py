@@ -41,7 +41,7 @@ def get_household_data(df, household):
     household_data.columns = ['AC', 'Geyser', 'Overall']
     return household_data
 
-def stream_data():
+def stream_data(index):
     """
     Generator function to stream averaged household data.
 
@@ -51,7 +51,6 @@ def stream_data():
     global current_household, current_interval
     household_data = get_household_data(data, current_household)
     num_rows = len(household_data)
-    index = 0
     start_index = index
     end_index = start_index + current_interval
     while True:
@@ -189,7 +188,8 @@ def stream_sse():
     Returns:
     - Response: SSE response object streaming averaged data.
     """
-    return Response(stream_data(), mimetype='text/event-stream')
+    st_index = request.args.get('start_index', default=0, type=int)
+    return Response(stream_data(index=st_index), mimetype='text/event-stream')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, threaded=True)
