@@ -1,5 +1,6 @@
 import streamlit as st
 import requests
+import base64
 from datetime import datetime
 
 web_prefix="https://smart-home-backend-95to.onrender.com"
@@ -24,6 +25,11 @@ def open_website_in_tab(url):
     js = f"window.open('{url}')"  # JavaScript to open a new tab
     html = f"<script>{js}</script>"
     st.markdown(html, unsafe_allow_html=True)
+    
+# Function to load an image and convert it to a base64 string
+def get_image_as_base64(image_path):
+    with open(image_path, 'rb') as image_file:
+        return base64.b64encode(image_file.read()).decode('utf-8')
 
 # Display title with an icon and help button
 col1, col2, col3 = st.columns([1, 8, 1])
@@ -33,7 +39,10 @@ with col2:
     st.title('Welcome to the Smart Energy Meter')
 with col3:
     help_url = "https://pranoyghosh35.github.io/smart_home_backend/"
-    st.markdown(f'<a href="{help_url}" target="_blank"><img src="https://img.icons8.com/ios-glyphs/30/000000/help.png"/></a>', unsafe_allow_html=True)
+    help_icon_path = "server_data_homes/images/help.png"  # Path to your local help icon
+    help_icon_base64 = get_image_as_base64(help_icon_path)
+    help_icon_html = f'<a href="{help_url}" target="_blank"><img src="data:image/png;base64,{help_icon_base64}" width="30"/></a>'
+    st.markdown(help_icon_html, unsafe_allow_html=True)
 
 # Step 1: Collect user input for household
 household_option = st.selectbox('Select House:', ['A', 'B', 'C', 'Other'])

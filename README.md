@@ -68,6 +68,18 @@ Functions:
 
 URL: https://smart-home-backend-95to.onrender.com/stream_setup
 
+--------------------------------------------------------
+- Note: You can hit the APIs and check responses through Postman [online](https://go.postman.co/home) 
+
+OR
+
+- #### use our [interface](https://smart-home-backend-95to.onrender.com/)
+![user_interface](server_data_homes/images/st_ui.png).
+
+- Add '/stop_streamlit' to above link anytime, to stop our interface.
+- else keep just '/' or refresh without 'stop_streamlit' to start again.
+------------------------------------------------------
+
 - Example API request (POST Method only):
     ```json
 	{
@@ -88,18 +100,11 @@ URL: https://smart-home-backend-95to.onrender.com/stream_setup
 - Example response:
     ```json
 	{
-	    "status": "Streaming setup successful"
+	    "status": "Streaming setup and stats calculation successful"
 	}
     ```
 
 - Appropriate error message is shown if household not in list or interval is invalid value.
-
-- Note: You can hit the APIs and check responses through Postman [online](https://go.postman.co/home) 
-
-OR
-
-- #### use our [interface](https://smart-home-backend-95to.onrender.com/)
-![user_interface](server_data_homes/images/st_ui.png).
 
 
 ### Step 2: Get Quick Statistics
