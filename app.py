@@ -4,7 +4,6 @@ import numpy as np
 import time
 import json
 from scipy import stats
-import threading
 
 app = Flask(__name__)
 
@@ -22,11 +21,24 @@ current_interval = None
 global_stats_data = None  # Initialize global stats_data
 
 def get_household_data(df, household):
+    """
+    Extracts data for a specific household from the dataframe.
+
+    Args:
+        df (pd.DataFrame): The dataframe containing the data.
+        household (str): The household identifier ('A', 'B', 'C').
+
+    Returns:
+        pd.DataFrame: The household data with columns renamed to 'AC', 'Geyser', 'Overall'.
+    """
     household_data = df[[f"{household}_AC", f"{household}_Geyser", f"{household}_Overall"]]
     household_data.columns = ['AC', 'Geyser', 'Overall']
     return household_data
 
 def calc_stats():
+    """
+    Calculates statistical data for the current household and interval.
+    """
     global global_stats_data
 
     clean_data = get_household_data(df=tmp, household=current_household)
@@ -72,7 +84,7 @@ def calc_stats():
                 critical_values[column_name] = None
         except Exception as e:
             global_stats_data = {'error': f"Error calculating statistics for {column_name}: {str(e)}"}
-            return
+            pass
 
     global_stats_data = {
         '25p': q25_val,
@@ -82,27 +94,24 @@ def calc_stats():
         'best_distribution': best_distributions
     }
 
-def calc_stats_thread_func():
-
-    while global_stats_data is None:
-        try:
-            calc_stats()
-            time.sleep(300)  # Sleep for 5 minutes before recalculating
-        except Exception as e:
-            print(f"Error in calc_stats thread: {e}")
-            time.sleep(60)  # Retry every minute in case of error
-
-# Start the calc_stats thread on application startup
-calc_stats_thread = threading.Thread(target=calc_stats_thread_func)
-calc_stats_thread.start()
-
 @app.route('/', methods=['GET'])
 def run_st_app():
+    """
+    Redirects the root URL to the Streamlit app.
+    """
     return redirect("http://0.0.0.0:8501")
 
 @app.route('/stream_setup', methods=['POST'])
 def stream_setup():
-    global current_household, current_interval, start_index
+    """
+    Sets up the streaming configuration.
+
+    Expects a JSON payload with 'household', 'interval', and optional 'start_index'.
+
+    Returns:
+        JSON response indicating success or error.
+    """
+    global current_household, current_interval, start_index, global_stats_data
     data = request.get_json()
     household = data.get('household')
     interval = data.get('interval')
@@ -124,19 +133,32 @@ def stream_setup():
     current_household = household
     current_interval = interval
     start_index = start_idx  # Update global start_index
+    global_stats_data = None  # Reset stats data
 
-    return jsonify({'status': 'Streaming setup successful'}), 200
+    calc_stats()  # Calculate stats immediately after setting up
+
+    return jsonify({'status': 'Streaming setup and stats calculation successful'}), 200
 
 def fit_best_distribution(data):
-    distributions = [stats.norm, stats.expon]  # Add more distributions as needed
+    """
+    Fits the best distribution to the given data.
+
+    Args:
+        data (pd.Series): The data to fit.
+
+    Returns:
+        tuple: The best distribution and its parameters.
+    """
+    distributions = [stats.norm, stats.expon]  
+    # Add more distributions e.g. stats.gamma, stats.beta, stats.lognorm as needed
     best_distribution = None
-    best_p_value = np.inf
+    best_p_value = -np.inf  # Use negative infinity to ensure proper comparison
     best_params = ()  # Initialize best_params as an empty tuple
 
     for distribution in distributions:
         params = distribution.fit(data)
         _, p_value = stats.kstest(data, distribution.name, args=params)
-        if p_value < best_p_value:
+        if p_value > best_p_value:
             best_distribution = distribution
             best_p_value = p_value
             best_params = params
@@ -145,13 +167,24 @@ def fit_best_distribution(data):
 
 @app.route('/stream_qstats', methods=['GET'])
 def stream_stats_route():
+    """
+    Returns the calculated statistical data for the current household.
 
+    Returns:
+        JSON response with the statistical data or an error message.
+    """
     if global_stats_data is not None:
         return jsonify(global_stats_data)
 
-    return jsonify({'error': 'Statistics not yet calculated. Try again later.'}), 404
+    return jsonify({'error': 'First try stream_setup.'}), 404
 
 def stream_data():
+    """
+    Streams the household data in intervals and provides status checking.
+
+    Yields:
+        str: The averaged values and their statuses in JSON format.
+    """
     global start_index
 
     household_data = get_household_data(data, current_household)
@@ -180,7 +213,7 @@ def stream_data():
             average_values = recent_data.astype(float).mean().round(3).to_dict()
             color = status_checking(average_values, global_stats_data)
             yield f"data: {json.dumps(average_values)} status: {json.dumps(color)}\n\n"
-        except (TypeError, ValueError):
+        except (TypeError, ValueError) as e:
             yield f"data: {json.dumps({'error': 'Invalid data'})} status: 'Critical Red'\n\n"
         finally:
             start_index += current_interval
@@ -190,6 +223,12 @@ def stream_data():
 
 @app.route('/stream_data', methods=['GET'])
 def stream_sse():
+    """
+    Endpoint for streaming household data.
+
+    Returns:
+        Response: A streaming response with household data and statuses.
+    """
     return Response(stream_data(), mimetype='text/event-stream')
 
 if __name__ == '__main__':
