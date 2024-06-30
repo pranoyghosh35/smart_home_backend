@@ -24,12 +24,15 @@ def open_website_in_tab(url):
     html = f"<script>{js}</script>"
     st.markdown(html, unsafe_allow_html=True)
 
-# Display title with an icon
-col1, col2 = st.columns([1, 9])
+# Display title with an icon and help button
+col1, col2, col3 = st.columns([1, 8, 1])
 with col1:
     st.image('server_data_homes/images/st_icon.png', width=100)  # Adjust width as needed
 with col2:
     st.title('Welcome to the Smart Energy Meter')
+with col3:
+    help_url = "https://pranoyghosh35.github.io/smart_home_backend/"
+    st.markdown(f'<a href="{help_url}" target="_blank"><img src="https://img.icons8.com/ios-glyphs/30/000000/help.png"/></a>', unsafe_allow_html=True)
 
 # Step 1: Collect user input for household
 household_option = st.selectbox('Select House:', ['A', 'B', 'C', 'Other'])
