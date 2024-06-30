@@ -13,5 +13,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Expose the port that Flask is running on
 EXPOSE 5000
 
-# Command to run the Flask app
-CMD ["python", "app.py"]
+# Make port 8501 available to the world outside this container (for Streamlit)
+EXPOSE 8501
+
+# Copy and run the shell script to start both Flask and Streamlit apps
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
+# Command to run the start script
+CMD ["/start.sh"]

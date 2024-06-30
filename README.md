@@ -1,5 +1,6 @@
 Generation and Simulation of Time-Series Data from Smart-Meters (AC, Geyser, Overall) in 3 Different Households
 ----------------------------------------------------
+- [GitHub](https://github.com/pranoyghosh35/smart_home_backend.git)
 - Note: The free web service on Render may respond slowly (~50 seconds) due to inactivity.
 
 ## Overview
@@ -18,9 +19,12 @@ The types of energy consumption tracked are AC, Geyser, and Overall consumption.
 
 Below we describe 2 most important of these:
 
-### Generating Synthetic Data
+### Generating Synthetic Data in kW-min
 
-The `gen_fake_data.py` script is responsible for generating the synthetic time-series data. It creates data with a resolution of 1 second, both with and without noise, to simulate real-world scenarios. The script generates separate datasets for each household, considering the unique energy consumption patterns for a home, an office, and a shift worker's home.
+- J is energy, J/sec is Power. 1 kW-min = 60 kJ energy.
+- But this unit gives an intutive sense of power*time=energy consumed by appliance.  
+
+The `gen_fake_data.py` script is responsible for generating the synthetic time-series data. It creates data with a resolution of 1 second, both with and without noise ("realistic_fake_energy_data_with_errors.csv" , "realistic_fake_energy_data_without_errors.csv" respectively ), to simulate real-world scenarios. The script generates separate datasets for each household, considering the unique energy consumption patterns for a home, an office, and a shift worker's home.
 
 ![Generating synthetic data of 1 second resolution both with or without noise](server_data_homes/images/gen_synthetic_data.png)
 
@@ -85,13 +89,39 @@ URL: https://smart-home-backend-95to.onrender.com/stream_setup
 
 - Appropriate error message is shown if household not in list or interval is invalid value.
 
+- Note: You can hit the APIs and check responses through Postman [online](https://go.postman.co/home) 
+
+OR
+
+- #### use our [interface](https://smart-home-backend-95to.onrender.com/)
+![user_interface](server_data_homes/images/st_ui.png).
+
+
 ### Step 2: Get Quick Statistics
 
 URL: https://smart-home-backend-95to.onrender.com/stream_qstats
 
-This endpoint provides quick statistics from the noise-free data for outlier detection and understanding expected baseline energy consumption patterns.
+This endpoint provides quick statistics from the noise-free data ("realistic_fake_energy_data_without_errors.csv") for outlier detection and understanding expected baseline energy consumption patterns.
 
 ![Quick Stats from noise free data for outlier detection](server_data_homes/images/hist_stats.png)
+
+- We report back 25p,50p (median), 75p, where the critical region on right side starts at a significance level of 1%, best fit distribution for each appliance (AC, Geyser, Overall) from the synthetic data without noise after averaging at same interval as streaming data, as we believe statistical property won't change with time.
+
+
+- Now we can write simple logic to identify outlier events and also decide their priority.
+
+- Some ideas:
+
+  ![Percentiles and outliers](server_data_homes/images/percentiles.png)
+
+  1. 25p-50p : Green region. User doing well.
+  2. 75p- : Yellow region. User needs to take some action
+
+  ![Right tail significance level](server_data_homes/images/rt_sig.jpg)
+
+  3. power value >= right side critical value : Red region critical err.
+
+
 
 ### Step-3: Stream Data
 
@@ -128,12 +158,18 @@ docker build -t my_app .
 ```
 - 
 ```
-docker run -p 5000:5000 my_app
+docker run -p 5000:5000 -p 8501:8501 my_app
 ```
 ## Frontend
 
-An android widget receiving updates from this live server showing time-series, changing colours according to events and allowing to take actions.
+- Idea: 
 
-Webpage   :[link]
+An android "rectangular" text-only informative widget on home screen.
 
-GitHub    :[link]
+- receiving updates from this live server showing House Identification at top, time of server update received and next 3 lines average energy consumption: Overall, AC, Geyser. 
+
+![Concept_Widget](server_data_homes/images/Widget_Concept.png)
+
+- The widget background changes colours : ![Green](https://via.placeholder.com/15/4CAF50/000000?text=+) , ![Yellow](https://via.placeholder.com/15/FFEB3B/000000?text=+) , ![Red](https://via.placeholder.com/15/F44336/000000?text=+)
+
+according to priority of events and allowing to take actions.

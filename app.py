@@ -1,4 +1,5 @@
-from flask import Flask, request, Response, jsonify
+from flask import Flask, request, Response, jsonify, redirect
+import subprocess
 import pandas as pd
 import numpy as np
 import time
@@ -60,6 +61,10 @@ def stream_data():
             end_index = start_index + current_interval
 
             time.sleep(current_interval)
+            
+@app.route('/', methods=['GET'])
+def run_st_app():
+    return redirect("http://0.0.0.0:8501")
 
 @app.route('/stream_setup', methods=['POST'])
 def stream_setup():
