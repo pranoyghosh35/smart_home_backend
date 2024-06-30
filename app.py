@@ -94,13 +94,6 @@ def calc_stats():
         'best_distribution': best_distributions
     }
 
-@app.route('/', methods=['GET'])
-def run_st_app():
-    """
-    Redirects the root URL to the Streamlit app.
-    """
-    return redirect("http://0.0.0.0:8501")
-
 @app.route('/stream_setup', methods=['POST'])
 def stream_setup():
     """
