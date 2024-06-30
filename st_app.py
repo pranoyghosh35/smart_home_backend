@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 from datetime import datetime
 
-web_prefix="https://smart-home-backend-95to.onrender.com"
+web_prefix="http://127.0.0.1:5000"#https://smart-home-backend-95to.onrender.com
 # Function to calculate the start index
 def calculate_start_index():
     now = datetime.now()
