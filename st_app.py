@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 from datetime import datetime
 
+web_prefix="http://127.0.0.1:5000"
 # Function to calculate the start index
 def calculate_start_index():
     now = datetime.now()
@@ -15,7 +16,7 @@ def setup_streaming(household, interval):
         "interval": interval,
         "start_index": start_index
     }
-    response = requests.post('https://smart-home-backend-95to.onrender.com/stream_setup', json=data)
+    response = requests.post(str(web_prefix+'/stream_setup'), json=data)
     return response.json()
 
 # Function to open the website in a new tab using JavaScript
@@ -52,15 +53,16 @@ else:
 
 # Submit button and handling response
 if st.button('Submit'):
+    st.write("Request sent. Please wait...")
     response = setup_streaming(household, interval)
 
-    if response.get('status') == 'Streaming setup successful':
+    if response.get('status')=="Streaming setup and stats calculation successful":
         st.success(response.get('status'))
         st.write('Streaming is set up successfully. You can now access the data and statistics websites below.')
 
         # Display hyperlinks to open data and stats websites
-        st.markdown(f"[Open Stats Website](https://smart-home-backend-95to.onrender.com/stream_qstats)")
-        st.markdown(f"[Open Data Website](https://smart-home-backend-95to.onrender.com/stream_data)")
+        st.markdown(f"[Open Stats Website]({web_prefix}/stream_qstats)")
+        st.markdown(f"[Open Data Website]({web_prefix}/stream_data)")
 
     else:
         st.error(response.get('error'))
