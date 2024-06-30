@@ -1,10 +1,10 @@
 from flask import Flask, request, Response, jsonify, redirect
-import subprocess
 import pandas as pd
 import numpy as np
 import time
 import json
 from scipy import stats
+import threading
 
 app = Flask(__name__)
 
@@ -16,67 +16,92 @@ data = pd.read_csv('server_data_homes/realistic_fake_energy_data_with_errors.csv
 # Load clean dataset as historical data for stats, outliers
 tmp = pd.read_csv('server_data_homes/realistic_fake_energy_data_without_errors.csv')
 
-# Global variables to store household and interval
+# Global variables to store household, interval, and stats_data
 current_household = None
 current_interval = None
+global_stats_data = None  # Initialize global stats_data
 
 def get_household_data(df, household):
-    """
-    Retrieves household-specific data from a DataFrame.
-
-    Parameters:
-    - df (pd.DataFrame): The DataFrame containing household data.
-    - household (str): The identifier for the household (e.g., 'A', 'B', 'C').
-
-    Returns:
-    - pd.DataFrame: Filtered DataFrame with columns for AC, Geyser, Overall.
-    """
     household_data = df[[f"{household}_AC", f"{household}_Geyser", f"{household}_Overall"]]
     household_data.columns = ['AC', 'Geyser', 'Overall']
     return household_data
 
-def stream_data():
-    """
-    Generator function to stream averaged household data.
+def calc_stats():
+    global global_stats_data
 
-    Yields:
-    - str: JSON-formatted string containing average values of AC, Geyser, Overall.
-    """
-    global start_index
-    household_data = get_household_data(data, current_household)
-    num_rows = len(household_data)
-    end_index = start_index + current_interval
-    while True:
-        recent_data = household_data.iloc[start_index:end_index]
+    clean_data = get_household_data(df=tmp, household=current_household)
+
+    q25 = clean_data.quantile(0.25)
+    median = clean_data.median()
+    q75 = clean_data.quantile(0.75)
+    iqr_data = clean_data[(clean_data >= q25) & (clean_data <= q75)].dropna()
+
+    if len(iqr_data) == 0:
+        global_stats_data = {'error': 'No valid data found for statistics calculation.'}
+        return
+
+    num_intervals = len(iqr_data) // current_interval
+
+    avg_values_list = []
+
+    for i in range(num_intervals):
+        start_idx = i * current_interval
+        end_idx = start_idx + current_interval
+        interval_data = iqr_data.iloc[start_idx:end_idx]
+        avg_values = interval_data.mean()
+        avg_values_list.append(avg_values)
+
+    average_sample = pd.DataFrame(avg_values_list, columns=['AC', 'Geyser', 'Overall'])
+
+    median_val = median.round(3).to_dict()
+    q25_val = q25.round(3).to_dict()
+    q75_val = q75.round(3).to_dict()
+
+    critical_values = {}
+    best_distributions = {}
+
+    for column_name in average_sample.columns:
+        column_data = average_sample[column_name]
         try:
-            average_values = recent_data.astype(float).mean().round(3).to_dict()
-            yield f"data: {json.dumps(average_values)}\n\n"
-        except (TypeError, ValueError):
-            yield f"data: {json.dumps({'error': 'Invalid data'})}\n\n"
-        finally:
-            if end_index >= num_rows:
-                end_index = 0  # Loop back to the beginning of the data
-            index = end_index
-            start_index = index
-            end_index = start_index + current_interval
+            best_distribution, best_params = fit_best_distribution(column_data)
+            best_distributions[column_name] = best_distribution.name if best_distribution is not None else None
+            if best_distribution is not None:
+                critical_value = best_distribution.ppf(0.99, *best_params)
+                critical_values[column_name] = round(critical_value, 3)
+            else:
+                critical_values[column_name] = None
+        except Exception as e:
+            global_stats_data = {'error': f"Error calculating statistics for {column_name}: {str(e)}"}
+            return
 
-            time.sleep(current_interval)
-            
+    global_stats_data = {
+        '25p': q25_val,
+        'median': median_val,
+        '75p': q75_val,
+        'rt_critical_value_0.01': critical_values,
+        'best_distribution': best_distributions
+    }
+
+def calc_stats_thread_func():
+
+    while global_stats_data is None:
+        try:
+            calc_stats()
+            time.sleep(300)  # Sleep for 5 minutes before recalculating
+        except Exception as e:
+            print(f"Error in calc_stats thread: {e}")
+            time.sleep(60)  # Retry every minute in case of error
+
+# Start the calc_stats thread on application startup
+calc_stats_thread = threading.Thread(target=calc_stats_thread_func)
+calc_stats_thread.start()
+
 @app.route('/', methods=['GET'])
 def run_st_app():
     return redirect("http://0.0.0.0:8501")
 
 @app.route('/stream_setup', methods=['POST'])
 def stream_setup():
-    """
-    Sets up streaming parameters (household, interval, and optionally start_index).
-
-    Expects JSON payload with 'household' and 'interval' parameters.
-    Optionally accepts 'start_index'.
-
-    Returns:
-    - json: Status message indicating success or error.
-    """
     global current_household, current_interval, start_index
     data = request.get_json()
     household = data.get('household')
@@ -103,16 +128,6 @@ def stream_setup():
     return jsonify({'status': 'Streaming setup successful'}), 200
 
 def fit_best_distribution(data):
-    """
-    Fits various statistical distributions to data and selects the best fit using the Kolmogorov-Smirnov test.
-
-    Parameters:
-    - data (pd.Series or pd.DataFrame): Data for which distributions are fitted.
-
-    Returns:
-    - scipy.stats.rv_continuous: Best-fit distribution.
-    - tuple: Parameters of the best-fit distribution.
-    """
     distributions = [stats.norm, stats.expon]  # Add more distributions as needed
     best_distribution = None
     best_p_value = np.inf
@@ -127,98 +142,54 @@ def fit_best_distribution(data):
             best_params = params
 
     return best_distribution, best_params
-    
+
 @app.route('/stream_qstats', methods=['GET'])
-def stream_stats():
-    """
-    Computes and streams statistics (median, std_dev, critical_value_0.01) for the current household.
+def stream_stats_route():
 
-    Returns:
-    - json: JSON object containing computed statistics or an error message.
-    """
-    clean_data = get_household_data(df=tmp, household=current_household)
+    if global_stats_data is not None:
+        return jsonify(global_stats_data)
 
-    # Select data between 25th and 75th percentiles
-    q25 = clean_data.quantile(0.25)
-    median = clean_data.median()
-    q75 = clean_data.quantile(0.75)
-    iqr_data = clean_data[(clean_data >= q25) & (clean_data <= q75)].dropna()
+    return jsonify({'error': 'Statistics not yet calculated. Try again later.'}), 404
 
-    if len(iqr_data) == 0:
-        return jsonify({'error': 'No valid data found for statistics calculation.'}), 404
+def stream_data():
+    global start_index
 
-    # Calculate the number of complete intervals in the data
-    num_intervals = len(iqr_data) // current_interval
+    household_data = get_household_data(data, current_household)
+    num_rows = len(household_data)
 
-    # Initialize lists to store average values
-    avg_values_list = []
-
-    # Iterate over each interval
-    for i in range(num_intervals):
-        # Calculate start and end indices for each interval
-        start_idx = i * current_interval
-        end_idx = start_idx + current_interval
-        
-        # Slice the interval data
-        interval_data = iqr_data.iloc[start_idx:end_idx]
-        
-        # Calculate average for each column
-        avg_values = interval_data.mean()
-        
-        # Append the averages to avg_values_list
-        avg_values_list.append(avg_values)
-
-    # Create a DataFrame from avg_values_list
-    average_sample = pd.DataFrame(avg_values_list, columns=['AC', 'Geyser', 'Overall'])
-    
-    # Calculate statistics
-    median_val = median.round(3).to_dict()
-    q25_val = q25.round(3).to_dict()
-    q75_val = q75.round(3).to_dict()
-    
-    # Initialize dictionaries to store results
-    critical_values = {}
-    best_distributions = {}
-
-    # Fit distributions and calculate critical values for each column separately
-    for column_name in average_sample.columns:
-        column_data = average_sample[column_name]
-        
-        try:
-            best_distribution, best_params = fit_best_distribution(column_data)
-            
-            # Store the best distribution name for the column
-            best_distributions[column_name] = best_distribution.name if best_distribution is not None else None
-            
-            # Calculate right-tailed critical region value at significance level of 0.01
-            if best_distribution is not None:
-                critical_value = best_distribution.ppf(0.99, *best_params)
-                critical_values[column_name] = round(critical_value, 3)
+    def status_checking(average_values, stats_data):
+        if stats_data is None:
+            return "TBD"
+        color = {}
+        for key, value in average_values.items():
+            if value < 0:
+                color[key] = "Red"
+            elif value < stats_data['25p'][key]:
+                color[key] = "Green"
+            elif value <= stats_data['75p'][key]:
+                color[key] = "Yellow"
+            elif value >= stats_data['rt_critical_value_0.01'][key]:
+                color[key] = "Red"
             else:
-                critical_values[column_name] = None
-        
-        except Exception as e:
-            # Handle exceptions by logging or returning an error response
-            return jsonify({'error': f"Error calculating statistics for {column_name}: {str(e)}"}), 404
-          
-    stats_data = {
-        '25p': q25_val,
-        'median': median_val,
-        '75p': q75_val,
-        'rt_critical_value_0.01': critical_values,
-        'best_distribution': best_distributions
-    }    
-    
-    return jsonify(stats_data)
+                color[key] = "TBD"
+        return color
+
+    while True:
+        recent_data = household_data.iloc[start_index:start_index + current_interval]
+        try:
+            average_values = recent_data.astype(float).mean().round(3).to_dict()
+            color = status_checking(average_values, global_stats_data)
+            yield f"data: {json.dumps(average_values)} status: {json.dumps(color)}\n\n"
+        except (TypeError, ValueError):
+            yield f"data: {json.dumps({'error': 'Invalid data'})} status: 'Critical Red'\n\n"
+        finally:
+            start_index += current_interval
+            if start_index >= num_rows:
+                start_index = 0
+            time.sleep(current_interval)
 
 @app.route('/stream_data', methods=['GET'])
 def stream_sse():
-    """
-    Initiates Server-Sent Events (SSE) for streaming averaged household data.
-
-    Returns:
-    - Response: SSE response object streaming averaged data.
-    """
     return Response(stream_data(), mimetype='text/event-stream')
 
 if __name__ == '__main__':

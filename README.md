@@ -7,9 +7,14 @@ Generation and Simulation of Time-Series Data from Smart-Meters (AC, Geyser, Ove
 
 This project involves generating realistic fake data for energy consumption in three different households and using a Flask application to stream this data to users. The households include:
 
-- Household A: A day worker's home.
-- Household B: An office.
-- Household C: A shift worker's home.
+- Household A: A day worker's home. AC is used during evening/night hours, Geyser is used in the morning and evening, 
+  and there is always some baseline overall energy consumption.
+
+- Household B: An office. AC is used during office hours (9 AM - 5 PM), Geyser is rarely used, and there is 
+  higher overall energy consumption during office hours.
+
+- Household C: A shift worker's home.AC and Geyser usage varies depending on the shift (night/day), and there is 
+  always some baseline overall energy consumption which varies with the shift.
 
 The types of energy consumption tracked are AC, Geyser, and Overall consumption.
 
@@ -119,7 +124,9 @@ This endpoint provides quick statistics from the noise-free data ("realistic_fak
 
   ![Right tail significance level](server_data_homes/images/rt_sig.jpg)
 
-  3. power value >= right side critical value : Red region critical err.
+  3. energy value <0 or energy value >= right side : Red region
+  
+  4. error : Critical Red.
 
 
 
