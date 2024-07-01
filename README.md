@@ -73,11 +73,10 @@ URL: https://smart-home-backend-95to.onrender.com/stream_setup
 
 OR
 
-- #### use our [interface](https://smart-home-backend-95to.onrender.com/)
+- #### use our [interface](https://smarter-energy-ui.onrender.com)
 ![user_interface](server_data_homes/images/st_ui.png).
 
-- Add '/stop_streamlit' to above link anytime, to stop our interface.
-- else keep just '/' or refresh without 'stop_streamlit' to start again.
+
 ------------------------------------------------------
 
 - Example API request (POST Method only):

@@ -1,5 +1,4 @@
-from flask import Flask, request, Response, jsonify,render_template_string
-import subprocess
+from flask import Flask, request, Response, jsonify
 import pandas as pd
 import numpy as np
 import time
@@ -20,43 +19,6 @@ tmp = pd.read_csv('server_data_homes/realistic_fake_energy_data_without_errors.c
 current_household = None
 current_interval = None
 global_stats_data = None  # Initialize global stats_data
-
-streamlit_process = None
-
-@app.route('/')
-def index():
-    global streamlit_process
-    # Check if Streamlit is already running
-    if streamlit_process is None or streamlit_process.poll() is not None:
-        # Start the Streamlit app
-        streamlit_process = subprocess.Popen(
-            ["streamlit", "run", "st_app.py", "--server.port=8501", "--server.address=0.0.0.0"]
-        )
-        # Wait a bit to ensure Streamlit starts properly
-        time.sleep(5)
-
-    # Embed the Streamlit app in an iframe
-    streamlit_url = 'http://127.0.0.1:8501'
-    iframe_html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Smart Energy Meter</title>
-    </head>
-    <body>
-        <iframe src="{streamlit_url}" width="100%" height="1000px" frameborder="0"></iframe>
-    </body>
-    </html>
-    """
-    return render_template_string(iframe_html)
-
-@app.route('/stop_streamlit')
-def stop_streamlit():
-    global streamlit_process
-    if streamlit_process is not None:
-        streamlit_process.terminate()
-        streamlit_process = None
-    return "Streamlit app stopped."
 
 def get_household_data(df, household):
     """
