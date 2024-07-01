@@ -73,7 +73,7 @@ URL: https://smart-home-backend-xn7x.onrender.com/stream_setup
 
 OR
 
-- #### use our [interface](https://smarter-energy-ui.onrender.com)
+- #### use our [interface](https://smarter-energy-ui-6w9j.onrender.com)
 ![user_interface](server_data_homes/images/st_ui.png).
 
 
