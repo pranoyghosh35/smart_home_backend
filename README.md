@@ -66,7 +66,7 @@ Functions:
 
 ### Step 1: Setup Data Streaming
 
-URL: https://smart-home-backend-95to.onrender.com/stream_setup
+URL: https://smart-home-backend-xn7x.onrender.com/stream_setup
 
 --------------------------------------------------------
 - Note: You can hit the APIs and check responses through Postman [online](https://go.postman.co/home) 
@@ -108,7 +108,7 @@ OR
 
 ### Step 2: Get Quick Statistics
 
-URL: https://smart-home-backend-95to.onrender.com/stream_qstats
+URL: https://smart-home-backend-xn7x.onrender.com/stream_qstats
 
 This endpoint provides quick statistics from the noise-free data ("realistic_fake_energy_data_without_errors.csv") for outlier detection and understanding expected baseline energy consumption patterns.
 
@@ -136,7 +136,7 @@ This endpoint provides quick statistics from the noise-free data ("realistic_fak
 
 ### Step-3: Stream Data
 
-URL: https://smart-home-backend-95to.onrender.com/stream_data
+URL: https://smart-home-backend-xn7x.onrender.com/stream_data
 
 - Example response:
 
@@ -169,7 +169,7 @@ docker build -t my_app .
 ```
 - 
 ```
-docker run -p 5000:5000 -p 8501:8501 my_app
+docker run -p 5000:5000 my_app
 ```
 ## Frontend
 
