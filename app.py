@@ -36,7 +36,7 @@ def index():
         time.sleep(5)
 
     # Embed the Streamlit app in an iframe
-    streamlit_url = 'http://localhost:8501'
+    streamlit_url = 'http://127.0.0.1:8501'
     iframe_html = f"""
     <!DOCTYPE html>
     <html>
